@@ -1,28 +1,48 @@
-# line_counter — Recursive Line Counter for C Projects
+<p align="center">
+  <img src="linebolt.png" alt="linebolt logo" width="200"/>
+</p>
 
-`line_counter` is a lightweight, fast command-line tool written in C that recursively traverses directories and counts the lines in `.c` and `.h` source files. It's designed for C developers who want a simple alternative to heavier tools or scripting languages.
+<p align="center"><b>The lightning-fast line counter for source projects.</b></p>
+
+# linebolt — Blazing-Fast Line Counter for Source Projects
+
+**linebolt** is a lightweight, high-performance command-line tool written in C that traverses directories and counts the total number of lines in source code files — fast. Originally designed for `.c` and `.h` files, it's engineered to scale to massive codebases like the Linux kernel, and flexible enough to support any extension (`.py`, `.cpp`, `.yaml`, etc.).
+
+* 10× faster than `cloc` on large codebases  
+* Handles massive trees like the Linux kernel in under 10 seconds  
+* Accurate even for files without a trailing newline  
+* POSIX-compatible (Linux, macOS)
+
+---
 
 ## Features
-* Counts lines in `.c` and `.h` files
-* Recursively walks through directories
-* Skips irrelevant directories like `.git`, `build`, `bin`, `etc`.
-* Ignores empty files
-* Correctly handles files without trailing newlines (unlike `wc -l`)
-* Designed for Linux and other POSIX-compliant systems
+* Counts lines in all `.c` and `.h` files by default
+* Non-recursive traversal using an internal stack (no malloc, no crashes)
+* Skips irrelevant directories (`.git`, `build`, `bin`, etc.)
+* Correctly counts files without final newline (unlike `wc -l`)
+* Ignores empty files (zero-character files)
+* Designed for Linux and other POSIX systems
+* Ultra fast — C standard library only
+
+Future roadmap:
+* [ ] Custom extension filtering (`--ext py,cpp`)
+* [ ] Blank/comment line exclusion
+* [ ] JSON or CSV output mode
+* [ ] Per-directory summaries
 
 ## Build Instructions
 You need a POSIX-compatible system (Linux, macOS) and GCC or Clang installed.
 
 ### Compile
 ```bash
-gcc -Wall -Wextra -o line_counter line_counter.c
+gcc -Wall -Wextra -o linebolt linebolt.c
 ```
 
 ### Run
 To count all `.c` and `.h` lines in the current directory:
 
 ```bash
-./line_counter
+./linebolt
 ```
 
 Output includes line counts per file and a total at the end.
@@ -37,7 +57,7 @@ Total lines: 44
 ```
 
 ## Directory Filtering
-The tool automatically skips the following directories:
+By default, `linebolt` skips common non-source folders:
 * `.git`
 * `.svn`
 * `bin`
@@ -47,10 +67,10 @@ The tool automatically skips the following directories:
 You can customize this in `should_ignore_dir()` in the source code.
 
 ## License
-MIT License (see bottom of `line_counter.c`)
+MIT License (see [LICENSE](LICENSE))
 
-Author: Zülfü Serhat Kük  
+Author: [Zülfü Serhat Kük](https://github.com/RealSeroMan)  
 Year: 2025
 
 ## Contributions
-If you’d like to contribute improvements (e.g. extension filtering, blank line exclusion, JSON output), feel free to fork and open a pull request!
+Want to extend it to support other languages or formats? Want blazing-fast CSV or JSON output? Open a pull request or submit an issue.

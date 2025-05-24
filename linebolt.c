@@ -1,16 +1,18 @@
 /*
- * line_counter.c - A simple line counting tool for C projects
+ * linebolt.c — A high-performance source line counter
  *
- * Recursively walks through the current directory and all subdirectories,
+ * Traverses the current directory and all subdirectories (non-recursively),
  * counts the number of lines in `.c` and `.h` source files, and prints the
  * result along with per-file line counts. It skips common build or VCS
  * directories like `.git`, `bin`, and `build`.
  *
- * This program is designed for POSIX-compliant systems (Linux, macOS).
- * It uses standard C functions like `opendir`, `readdir`, and `stat` for
- * directory traversal and file type detection.
+ * Implements a non-recursive depth-first search using a global stack.
+ * Designed for POSIX-compliant systems (Linux, macOS).
+ *
+ * Uses only standard C system functions: `opendir`, `readdir`, `stat`, etc.
  *
  * Author: Zülfü Serhat Kük
+ * Github: https://github.com/RealSeroMan
  * License: MIT
  * Year: 2025
  */
