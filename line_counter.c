@@ -1,5 +1,5 @@
 /*
- * linecounter.c - A simple line counting tool for C projects
+ * line_counter.c - A simple line counting tool for C projects
  *
  * Recursively walks through the current directory and all subdirectories,
  * counts the number of lines in `.c` and `.h` source files, and prints the
@@ -37,6 +37,17 @@
 // For error reporting (used with perror())
 #include <errno.h>
 
+#define MAX_PATH_SIZE PATH_MAX
+#define STACK_SIZE 200000
+
+typedef struct {
+    char path[MAX_PATH_SIZE];
+} StackEntry;
+
+static StackEntry stack[STACK_SIZE];
+static int top = 0;
+
+
 // Determines whether the file should be counted based on its extension
 // Only .c and .h files are considered valid source files here
 int should_count_file(const char *filename) {
@@ -45,7 +56,6 @@ int should_count_file(const char *filename) {
     if (len > 2 && strcmp(filename + len - 2, ".h") == 0) return 1;
     return 0;
 }
-
 
 
 // Determines whether a directory should be skipped during traversal
@@ -60,7 +70,6 @@ int should_ignore_dir(const char *dirname) {
         strcmp(dirname, "obj") == 0        // Common object file folder
     );
 }
-
 
 
 // Opens a text file and counts how many newline characters it contains
@@ -87,6 +96,8 @@ long count_lines_in_file(const char *filepath) {
         }
     }
 
+    fclose(f);  // MUST close the file
+
     // If file has content but does not end in newline, count the last line
     if (has_content && !last_char_was_newline)
         lines++;
@@ -95,75 +106,82 @@ long count_lines_in_file(const char *filepath) {
 }
 
 
-
-// Recursively traverses the directory at 'path'
-// Counts the total number of lines in all .c and .h files
+// Recursively traverses the directory tree starting at 'start_path'
+// Counts total lines in all .c and .h source files found
 // Adds the result to the value pointed to by 'total_lines'
-int walk_directory(const char *path, long *total_lines) {
-    // Open the directory for reading
-    // DIR is an opaque type representing a directory stream
-    DIR *dir = opendir(path);
-    if (!dir) {
-        // Print an error if the directory can't be opened (e.g., permission denied)
-        perror(path);
-        return -1;    // Signal failure
+int walk_directory(const char *start_path, long *total_lines) {
+    // Ensure we have space in the traversal stack before starting
+    if (top >= STACK_SIZE) {
+        fprintf(stderr, "Initial stack overflow\n");
+        return -1;
     }
 
-    struct dirent *entry;    // Used to hold info about each entry in the directory
-    char fullpath[PATH_MAX]; // Buffer to store the full path of each entry
+    // Push the initial path onto the global stack
+    snprintf(stack[top].path, MAX_PATH_SIZE, "%s", start_path);
+    top++;
 
-    // Iterate through entries in the directory one by one
-    while ((entry = readdir(dir)) != NULL) {
-        // Skip special entries "." (current dir) and ".." (parent dir) to prevent infinite recursion
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
+    // Loop while there are directories left to process
+    while (top > 0) {
+        top--;
 
-        // Construct the full path to the file or directory
-        // Example: path = "src", entry->d_name = "main.c" → fullpath = "src/main.c"
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
+        // Make a local copy of the current path (avoid pointer reuse issues)
+        char path[MAX_PATH_SIZE];
+        snprintf(path, sizeof(path), "%s", stack[top].path);
 
-        struct stat st;
-        // Retrieve file metadata into 'st'
-        // This tells us whether the entry is a regular file, directory, symlink, etc.
-        if (stat(fullpath, &st) == -1) {
-            // If stat fails (e.g., broken symlink), print an error and skip it
-            perror(fullpath);
+        // Attempt to open the directory
+        DIR *dir = opendir(path);
+        if (!dir) {
+            perror(path);  // Print error and skip if directory can't be opened
             continue;
         }
 
-        // If the entry is a directory, recurse into it
-        if (S_ISDIR(st.st_mode)) {
-            // Skip unwanted directories like .git/, bin/, etc.
-            if (should_ignore_dir(entry->d_name)) continue;
+        struct dirent *entry;
+        char fullpath[MAX_PATH_SIZE];  // Buffer to hold full path to each entry
 
-            // Recursive call to process the subdirectory
-            walk_directory(fullpath, total_lines);
-        }
+        // Iterate over entries in the current directory
+        while ((entry = readdir(dir)) != NULL) {
+            // Skip "." and ".." entries to avoid infinite recursion
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
 
-        // If the entry is a regular file (not a directory, symlink, etc.)
-        else if (S_ISREG(st.st_mode)) {
-            // Check if it's a source file we care about (.c or .h)
-            if (should_count_file(entry->d_name)) {
-                // Count the number of lines in the file
-                long file_lines = count_lines_in_file(fullpath);
+            // Build full path to the file or subdirectory
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
 
-                // Print the line count and file path
-                printf("%6ld lines  %s\n", file_lines, fullpath);
+            // Retrieve file information (type, size, etc.)
+            struct stat st;
+            if (stat(fullpath, &st) == -1) {
+                perror(fullpath);  // Print error if stat fails
+                continue;
+            }
 
-                // Add to the running total
-                *total_lines += file_lines;
+            // If it's a directory, push it onto the stack to process later
+            if (S_ISDIR(st.st_mode)) {
+                if (should_ignore_dir(entry->d_name)) continue;
+
+                if (top >= STACK_SIZE) {
+                    fprintf(stderr, "Stack overflow\n");
+                    continue;
+                }
+
+                snprintf(stack[top].path, MAX_PATH_SIZE, "%s", fullpath);
+                top++;
+            }
+
+            // If it's a regular file and a .c or .h file, count its lines
+            else if (S_ISREG(st.st_mode)) {
+                if (should_count_file(entry->d_name)) {
+                    long file_lines = count_lines_in_file(fullpath);
+                    printf("%6ld lines  %s\n", file_lines, fullpath);
+                    *total_lines += file_lines;
+                }
             }
         }
-        // Other file types (symlinks, sockets, etc.) are silently skipped
+
+        closedir(dir);
     }
 
-    // Close the directory stream to free resources
-    closedir(dir);
-
-    // Return success
     return 0;
 }
-
 
 
 // Entry point of the program
