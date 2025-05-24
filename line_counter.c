@@ -1,9 +1,18 @@
 /*
- * Line Counter for C Projects
- * Recursively walks through the current directory and subdirectories,
- * counts the lines in .c and .h source files, and skips common irrelevant folders.
+ * linecounter.c - A simple line counting tool for C projects
  *
- * Designed for POSIX systems (Linux, macOS).
+ * Recursively walks through the current directory and all subdirectories,
+ * counts the number of lines in `.c` and `.h` source files, and prints the
+ * result along with per-file line counts. It skips common build or VCS
+ * directories like `.git`, `bin`, and `build`.
+ *
+ * This program is designed for POSIX-compliant systems (Linux, macOS).
+ * It uses standard C functions like `opendir`, `readdir`, and `stat` for
+ * directory traversal and file type detection.
+ *
+ * Author: Zülfü Serhat Kük
+ * License: MIT
+ * Year: 2025
  */
 
 
@@ -47,6 +56,7 @@ int should_ignore_dir(const char *dirname) {
         strcmp(dirname, ".svn") == 0 ||    // Subversion metadata directory
         strcmp(dirname, "build") == 0 ||   // Common build output folder
         strcmp(dirname, "bin") == 0 ||     // Common binary output folder
+        strcmp(dirname, ".vscode") == 0 || // VSCode config folder
         strcmp(dirname, "obj") == 0        // Common object file folder
     );
 }
@@ -64,14 +74,23 @@ long count_lines_in_file(const char *filepath) {
 
     long lines = 0;
     int ch;
+    int has_content = 0;            // Whether file has at least 1 non-empty char
+    int last_char_was_newline = 0;  // Track if last char is a newline
 
-    // Read the file character by character
-    // Count each newline character as a line
     while ((ch = fgetc(f)) != EOF) {
-        if (ch == '\n') lines++;
+        has_content = 1;            // File is not empty
+        if (ch == '\n') {
+            lines++;
+            last_char_was_newline = 1;
+        } else {
+            last_char_was_newline = 0;
+        }
     }
 
-    fclose(f);  // Always close the file when done
+    // If file has content but does not end in newline, count the last line
+    if (has_content && !last_char_was_newline)
+        lines++;
+
     return lines;
 }
 
