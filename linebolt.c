@@ -39,12 +39,18 @@
 // For error reporting (used with perror())
 #include <errno.h>
 
+// Required for clock_gettime()
+#include <time.h>
+
 #define MAX_PATH_SIZE PATH_MAX
 #define STACK_SIZE 200000
 
 typedef struct {
     char path[MAX_PATH_SIZE];
 } StackEntry;
+
+// Declare time structs to capture start and end timestamps
+struct timespec start, end;
 
 static StackEntry stack[STACK_SIZE];
 static int top = 0;
@@ -108,9 +114,9 @@ long count_lines_in_file(const char *filepath) {
 }
 
 
-// Recursively traverses the directory tree starting at 'start_path'
-// Counts total lines in all .c and .h source files found
-// Adds the result to the value pointed to by 'total_lines'
+// Performs a non-recursive depth-first traversal starting at 'start_path'
+// Counts the total number of lines in all `.c` and `.h` files encountered
+// Accumulates the result in the variable pointed to by 'total_lines'
 int walk_directory(const char *start_path, long *total_lines) {
     // Ensure we have space in the traversal stack before starting
     if (top >= STACK_SIZE) {
@@ -188,6 +194,8 @@ int walk_directory(const char *start_path, long *total_lines) {
 
 // Entry point of the program
 int main(void) {
+    // Record the start time using a monotonic (non-wall) clock
+    clock_gettime(CLOCK_MONOTONIC, &start);
     long total_lines = 0;
 
     // Start recursive directory traversal from current directory (".")
@@ -200,6 +208,15 @@ int main(void) {
         // If an error occurred, report it to stderr
         fprintf(stderr, "Error walking the directory tree.\n");
     }
+
+    // Record the end time after processing completes
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    // Compute elapsed time in milliseconds
+    double elapsed_ms = (end.tv_sec - start.tv_sec) * 1000.0 + \
+                    (end.tv_nsec - start.tv_nsec) / 1e6;
+
+    printf("\nExecution time: %.2f ms\n", elapsed_ms);
 
     return 0;  // Exit with success
 }

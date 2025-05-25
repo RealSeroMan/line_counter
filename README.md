@@ -55,6 +55,15 @@ Output includes line counts per file and a total at the end.
 =============================
 Total lines: 44 
 ```
+## Behavior Differences Compared to `cloc`
+
+Unlike `cloc`, **linebolt counts all matching files** — even if their contents are byte-for-byte identical.
+
+This ensures line counts reflect **what actually exists in the repository**, rather than deduplicating identical files. As a result, `linebolt` may report **slightly higher totals** on projects that contain copied or duplicated files (e.g., vendored libraries, backups, or symlinks).
+
+> In testing on the Linux kernel, `linebolt` reported about **1% more lines** than `cloc`, due to this intentional difference.
+
+
 
 ## Directory Filtering
 By default, `linebolt` skips common non-source folders:
